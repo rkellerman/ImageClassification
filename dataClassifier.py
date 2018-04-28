@@ -16,6 +16,7 @@ import mira
 import samples
 import sys
 import util
+import time
 
 TEST_SET_SIZE = 100
 DIGIT_DATUM_WIDTH=28
@@ -180,7 +181,7 @@ def readCommand( argv ):
   
   parser.add_option('-c', '--classifier', help=default('The type of classifier'), choices=['mostFrequent', 'nb', 'naiveBayes', 'perceptron', 'mira', 'minicontest'], default='perceptron')
   parser.add_option('-d', '--data', help=default('Dataset to use'), choices=['digits', 'faces'], default='digits')
-  parser.add_option('-t', '--training', help=default('The size of the training set'), default=100, type="int")
+  parser.add_option('-t', '--training', help=default('The size of the training set'), default=400, type="int")
   parser.add_option('-f', '--features', help=default('Whether to use enhanced features'), default=False, action="store_true")
   parser.add_option('-o', '--odds', help=default('Whether to compute odds ratios'), default=False, action="store_true")
   parser.add_option('-1', '--label1', help=default("First label in an odds ratio comparison"), default=0, type="int")
@@ -277,7 +278,7 @@ def readCommand( argv ):
   args['featureFunction'] = featureFunction
   args['printImage'] = printImage
   
-  return args, options
+  return args, options, legalLabels
 
 USAGE_STRING = """
   USAGE:      python dataClassifier.py <options>
@@ -295,7 +296,7 @@ USAGE_STRING = """
 
 # Main harness code
 
-def runClassifier(args, options):
+def runClassifier(args, options, legalLabels):
 
   featureFunction = args['featureFunction']
   classifier = args['classifier']
@@ -306,60 +307,81 @@ def runClassifier(args, options):
   numTest = options.test
 
   if(options.data=="faces"):
-    rawTrainingData = samples.loadDataFile("facedata/facedatatrain", numTraining,FACE_DATUM_WIDTH,FACE_DATUM_HEIGHT)
-    trainingLabels = samples.loadLabelsFile("facedata/facedatatrainlabels", numTraining)
+    
     rawValidationData = samples.loadDataFile("facedata/facedatatrain", numTest,FACE_DATUM_WIDTH,FACE_DATUM_HEIGHT)
     validationLabels = samples.loadLabelsFile("facedata/facedatatrainlabels", numTest)
     rawTestData = samples.loadDataFile("facedata/facedatatest", numTest,FACE_DATUM_WIDTH,FACE_DATUM_HEIGHT)
     testLabels = samples.loadLabelsFile("facedata/facedatatestlabels", numTest)
   else:
-    rawTrainingData = samples.loadDataFile("digitdata/trainingimages", numTraining,DIGIT_DATUM_WIDTH,DIGIT_DATUM_HEIGHT)
-    trainingLabels = samples.loadLabelsFile("digitdata/traininglabels", numTraining)
+    
     rawValidationData = samples.loadDataFile("digitdata/validationimages", numTest,DIGIT_DATUM_WIDTH,DIGIT_DATUM_HEIGHT)
     validationLabels = samples.loadLabelsFile("digitdata/validationlabels", numTest)
     rawTestData = samples.loadDataFile("digitdata/testimages", numTest,DIGIT_DATUM_WIDTH,DIGIT_DATUM_HEIGHT)
     testLabels = samples.loadLabelsFile("digitdata/testlabels", numTest)
-    
+
   
   # Extract features
   print "Extracting features..."
-  trainingData = map(featureFunction, rawTrainingData)
+  
   validationData = map(featureFunction, rawValidationData)
   testData = map(featureFunction, rawTestData)
-  
-  # Conduct training and testing
-  print "Training..."
-  classifier.train(trainingData, trainingLabels, validationData, validationLabels)
-  print "Validating..."
-  guesses = classifier.classify(validationData)
-  correct = [guesses[i] == validationLabels[i] for i in range(len(validationLabels))].count(True)
-  print str(correct), ("correct out of " + str(len(validationLabels)) + " (%.1f%%).") % (100.0 * correct / len(validationLabels))
-  print "Testing..."
-  guesses = classifier.classify(testData)
-  correct = [guesses[i] == testLabels[i] for i in range(len(testLabels))].count(True)
-  print str(correct), ("correct out of " + str(len(testLabels)) + " (%.1f%%).") % (100.0 * correct / len(testLabels))
-  analysis(classifier, guesses, testLabels, testData, rawTestData, printImage)
-  
-  # do odds ratio computation if specified at command line
-  if((options.odds) & (options.classifier == "naiveBayes" or (options.classifier == "nb")) ):
-    label1, label2 = options.label1, options.label2
-    features_odds = classifier.findHighOddsFeatures(label1,label2)
-    if(options.classifier == "naiveBayes" or options.classifier == "nb"):
-      string3 = "=== Features with highest odd ratio of label %d over label %d ===" % (label1, label2)
-    else:
-      string3 = "=== Features for which weight(label %d)-weight(label %d) is biggest ===" % (label1, label2)    
-      
-    print string3
-    printImage(features_odds)
 
-  if((options.weights) & (options.classifier == "perceptron")):
-    for l in classifier.legalLabels:
-      features_weights = classifier.findHighWeightFeatures(l)
-      print ("=== Features with high weight for label %d ==="%l)
-      printImage(features_weights)
+  total = numTraining
+
+  f_out = open('./results/' + options.classifier + "_" + options.data + '.txt', 'w')
+
+  # train and classify for portions of the training data, compare performance
+  for i in range(1, 11):
+    
+    print "\n\nUsing", i*10, "% of training data\n"
+
+    multiplier = i / 10.0
+    numTraining = int(total * multiplier)
+
+    if(options.classifier == "naiveBayes"):
+        classifier = naiveBayes.NaiveBayesClassifier(legalLabels)
+    elif(options.classifier == "perceptron"):
+        classifier = perceptron.PerceptronClassifier(legalLabels,options.iterations)
+
+    if options.data == "faces":
+        rawTrainingData = samples.loadDataFile("facedata/facedatatrain", numTraining,FACE_DATUM_WIDTH,FACE_DATUM_HEIGHT)
+        trainingLabels = samples.loadLabelsFile("facedata/facedatatrainlabels", numTraining)
+    else:
+        rawTrainingData = samples.loadDataFile("digitdata/trainingimages", numTraining,DIGIT_DATUM_WIDTH,DIGIT_DATUM_HEIGHT)
+        trainingLabels = samples.loadLabelsFile("digitdata/traininglabels", numTraining)
+
+    trainingData = map(featureFunction, rawTrainingData)
+    # Conduct training and testing
+
+    start_time = time.time()
+
+    print "Training..."
+    classifier.train(trainingData, trainingLabels, validationData, validationLabels)
+
+    end_time = time.time()
+    exec_time = end_time - start_time
+
+    print "\n\nUsing " + str(numTraining) + " training images"
+    print "Training took " + str(exec_time) + " seconds\n\n"
+
+    print "Validating..."
+    guesses = classifier.classify(validationData)
+    correct = [guesses[i] == validationLabels[i] for i in range(len(validationLabels))].count(True)
+    print str(correct), ("correct out of " + str(len(validationLabels)) + " (%.1f%%).") % (100.0 * correct / len(validationLabels))
+    val_correct = correct
+    print "Testing..."
+    guesses = classifier.classify(testData)
+    correct = [guesses[i] == testLabels[i] for i in range(len(testLabels))].count(True)
+    print str(correct), ("correct out of " + str(len(testLabels)) + " (%.1f%%).") % (100.0 * correct / len(testLabels))
+    test_correct = correct
+    # analysis(classifier, guesses, testLabels, testData, rawTestData, printImage)
+
+    f_out.write(str(numTraining) + " " + str(exec_time) + " " + str(numTest) + " " + str(val_correct) + " " + str(test_correct) + '\n')
+
+  f_out.close()
 
 if __name__ == '__main__':
   # Read input
-  args, options = readCommand( sys.argv[1:] ) 
+  args, options, legalLabels = readCommand( sys.argv[1:] ) 
   # Run classifier
-  runClassifier(args, options)
+  runClassifier(args, options, legalLabels)

@@ -30,6 +30,8 @@ class PerceptronClassifier:
     self.weights == weights;
       
   def train( self, trainingData, trainingLabels, validationData, validationLabels ):
+
+   
     """
     The training loop for the perceptron passes through the training data several
     times and updates the weight vector for each label based on classification errors.
@@ -41,7 +43,7 @@ class PerceptronClassifier:
     (and thus represents a vector a values).
     """
     
-    self.features = trainingData[0].keys() # could be useful later
+    # self.features = trainingData[0].keys() # could be useful later
     # DO NOT ZERO OUT YOUR WEIGHTS BEFORE STARTING TRAINING, OR
     # THE AUTOGRADER WILL LIKELY DEDUCT POINTS.
 
