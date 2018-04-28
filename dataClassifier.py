@@ -180,7 +180,7 @@ def readCommand( argv ):
   parser = OptionParser(USAGE_STRING)
   
   parser.add_option('-c', '--classifier', help=default('The type of classifier'), choices=['mostFrequent', 'nb', 'naiveBayes', 'perceptron', 'mira', 'minicontest'], default='perceptron')
-  parser.add_option('-d', '--data', help=default('Dataset to use'), choices=['digits', 'faces'], default='digits')
+  parser.add_option('-d', '--data', help=default('Dataset to use'), choices=['digits', 'faces'], default='faces')
   parser.add_option('-t', '--training', help=default('The size of the training set'), default=400, type="int")
   parser.add_option('-f', '--features', help=default('Whether to use enhanced features'), default=False, action="store_true")
   parser.add_option('-o', '--odds', help=default('Whether to compute odds ratios'), default=False, action="store_true")

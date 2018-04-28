@@ -74,7 +74,7 @@ class MiraClassifier:
             if bestY != actualY:
               f = datum.copy()
               tau = min(c, ((weights[bestY] - weights[actualY])* f + 1.0)/(2.0 *(f*f)))
-              print 'tau ', tau
+              # print 'tau ', tau
               f.divideAll(tau/1.0)
 
               weights[actualY] = weights[actualY] + f
