@@ -54,44 +54,43 @@ class MiraClassifier:
     datum is a counter from features to values for those features
     representing a vector of values.
     """
-    "*** YOUR CODE HERE ***"
-    bestWeights = {}
-    bestAccuracy = None
+    """*** YOUR CODE HERE ***"""
+    globalWeights = {}
+    globalAccuracy = None
     for c in Cgrid:
       weights = self.weights.copy()
       for n in range(self.max_iterations):
-        for i, datum in enumerate(trainingData):
-          bestScore = None 
-          bestY = None
+        for index, image in enumerate(trainingData):
+          maxScore = None
+          wyPrime = None
 
           for y in self.legalLabels:
-            score = datum * weights[y]
-            if score > bestScore or bestScore is None:
-              bestScore = score
-              bestY = y
-            actualY = trainingLabels[i]
+            score = image * weights[y]
+            if maxScore is None or score > maxScore:
+              maxScore = score
+              wyPrime = y
+            wy = trainingLabels[index]
               
-            if bestY != actualY:
-              f = datum.copy()
-              tau = min(c, ((weights[bestY] - weights[actualY])* f + 1.0)/(2.0 *(f*f)))
-              print 'tau ', tau
-              f.divideAll(tau/1.0)
+            if wyPrime != wy:
+              features = image.copy()
+              tau = ((weights[wyPrime] - weights[wy])* features + 1.0)/(2.0 *(features*features))
+              tau = min(c, tau)
+              # print 'tau ', tau
+              features.divideAll(tau/1.0)
 
-              weights[actualY] = weights[actualY] + f
-              weights[bestY] = weights[bestY] - f
+              weights[wy] = weights[wy] + features
+              weights[wyPrime] = weights[wyPrime] - features
       correct = 0
       guesses = self.classify(validationData)
       for i, guess in enumerate(guesses):
         correct += (validationLabels[i] == guess and 1.0 or 0.0)
       accuracy = correct / len(guesses)
 
-      if accuracy > bestAccuracy or bestAccuracy is None:
-        bestAccuracy = accuracy
-        bestWeights = weights
+      if accuracy > globalAccuracy or globalAccuracy is None:
+        globalAccuracy = accuracy
+        globalWeights = weights
 
-    self.weights = bestWeights
-    #util.raiseNotDefined()
-
+    self.weights = globalWeights
   def classify(self, data ):
     """
     Classifies each datum as the label that most closely matches the prototype vector
